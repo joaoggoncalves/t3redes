@@ -1,3 +1,4 @@
+from sys import prefix
 from grader.tcputils import addr2str, calc_checksum, str2addr
 import struct
 from iputils import *
@@ -36,9 +37,22 @@ class IP:
         # TODO: Use a tabela de encaminhamento para determinar o próximo salto
         # (next_hop) a partir do endereço de destino do datagrama (dest_addr).
         # Retorne o next_hop para o dest_addr fornecido.
+        contador = 0
+        indices = []
+        maxprefixlen = 0
+        maior = 0
         for i in range(len(self.tabela)):
             if ipaddress.ip_address(dest_addr) in ipaddress.ip_network(self.tabela[i][0]):
-                return self.tabela[i][1]
+                contador += 1
+                indices.append(i)
+        if contador > 1:
+            for j in indices:
+                if (ipaddress.ip_network(self.tabela[j][0])).prefixlen > maxprefixlen:
+                    maxprefixlen = (ipaddress.ip_network(self.tabela[j][0])).prefixlen
+                    maior = j
+            return self.tabela[maior][1]
+        elif contador == 1:
+            return self.tabela[indices[0]][1]
         return None
 
     def definir_endereco_host(self, meu_endereco):
