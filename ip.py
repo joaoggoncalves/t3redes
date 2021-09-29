@@ -1,3 +1,5 @@
+from grader.tcputils import addr2str, calc_checksum, str2addr
+import struct
 from iputils import *
 import ipaddress
 
@@ -15,6 +17,7 @@ class IP:
         self.ignore_checksum = self.enlace.ignore_checksum
         self.meu_endereco = None
         self.tabela = []
+        self.counter = 0
 
     def __raw_recv(self, datagrama):
         dscp, ecn, identification, flags, frag_offset, ttl, proto, \
@@ -72,4 +75,9 @@ class IP:
         next_hop = self._next_hop(dest_addr)
         # TODO: Assumindo que a camada superior é o protocolo TCP, monte o
         # datagrama com o cabeçalho IP, contendo como payload o segmento.
+        datagrama = struct.pack('!BBHHHBBHII', 69, 0, 20+len(segmento), self.counter+1, 0, 64, 6, 0, int.from_bytes(str2addr(self.meu_endereco), 'big'), int.from_bytes(str2addr(dest_addr), 'big'))
+        headerchecksum = calc_checksum(datagrama)
+        datagrama = struct.pack('!BBHHHBBHII', 69, 0, 20+len(segmento), self.counter+1, 0, 64, 6, headerchecksum, int.from_bytes(str2addr(self.meu_endereco), 'big'), int.from_bytes(str2addr(dest_addr), 'big'))
+        datagrama = datagrama + segmento
+        self.counter = self.counter + 1
         self.enlace.enviar(datagrama, next_hop)
