@@ -1,3 +1,4 @@
+from grader.iputils import IPPROTO_ICMP
 from sys import prefix
 from grader.tcputils import addr2str, calc_checksum, fix_checksum, str2addr
 import struct
@@ -37,6 +38,16 @@ class IP:
                 checksum = calc_checksum(datagramanovo)
                 datagramanovo = struct.pack('!BBHHHBBHII', 69, dscp | ecn, 20, identification, flags | frag_offset, ttl, proto, checksum, int.from_bytes(str2addr(src_addr), 'big'), int.from_bytes(str2addr(dst_addr), 'big'))
                 self.enlace.enviar(datagramanovo, next_hop)
+            else:
+                next_hop2 = self._next_hop(src_addr)
+                datagramaerro = struct.pack('!BBHHHBBHII', 69, dscp | ecn, 48, identification, flags | frag_offset, 64, IPPROTO_ICMP, 0, int.from_bytes(str2addr(self.meu_endereco), 'big'), int.from_bytes(str2addr(src_addr), 'big'))
+                checksum2 = calc_checksum(datagramaerro)
+                datagramaerro = struct.pack('!BBHHHBBHII', 69, dscp | ecn, 48, identification, flags | frag_offset, 64, IPPROTO_ICMP, checksum2, int.from_bytes(str2addr(self.meu_endereco), 'big'), int.from_bytes(str2addr(src_addr), 'big'))
+                icmp = struct.pack('!BBHHH', 11, 0, 0, 0, 0)
+                checksum3 = calc_checksum(datagramaerro + icmp)
+                icmp = struct.pack('!BBHHH', 11, 0, checksum3, 0, 0)
+                datagramaerro = datagramaerro + icmp + datagrama[:28]
+                self.enlace.enviar(datagramaerro, next_hop2)
 
     def _next_hop(self, dest_addr):
         # TODO: Use a tabela de encaminhamento para determinar o próximo salto
