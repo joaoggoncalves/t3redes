@@ -1,5 +1,5 @@
 from sys import prefix
-from grader.tcputils import addr2str, calc_checksum, str2addr
+from grader.tcputils import addr2str, calc_checksum, fix_checksum, str2addr
 import struct
 from iputils import *
 import ipaddress
@@ -22,7 +22,7 @@ class IP:
 
     def __raw_recv(self, datagrama):
         dscp, ecn, identification, flags, frag_offset, ttl, proto, \
-           src_addr, dst_addr, payload = read_ipv4_header(datagrama)
+            src_addr, dst_addr, payload = read_ipv4_header(datagrama)
         if dst_addr == self.meu_endereco:
             # atua como host
             if proto == IPPROTO_TCP and self.callback:
@@ -31,7 +31,12 @@ class IP:
             # atua como roteador
             next_hop = self._next_hop(dst_addr)
             # TODO: Trate corretamente o campo TTL do datagrama
-            self.enlace.enviar(datagrama, next_hop)
+            if ttl-1 > 0:
+                ttl = ttl - 1
+                datagramanovo = struct.pack('!BBHHHBBHII', 69, dscp | ecn, 20, identification, flags | frag_offset, ttl, proto, 0, int.from_bytes(str2addr(src_addr), 'big'), int.from_bytes(str2addr(dst_addr), 'big'))
+                checksum = calc_checksum(datagramanovo)
+                datagramanovo = struct.pack('!BBHHHBBHII', 69, dscp | ecn, 20, identification, flags | frag_offset, ttl, proto, checksum, int.from_bytes(str2addr(src_addr), 'big'), int.from_bytes(str2addr(dst_addr), 'big'))
+                self.enlace.enviar(datagramanovo, next_hop)
 
     def _next_hop(self, dest_addr):
         # TODO: Use a tabela de encaminhamento para determinar o próximo salto
